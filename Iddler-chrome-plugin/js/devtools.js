@@ -58,7 +58,9 @@ chrome.devtools.network.onRequestFinished.addListener(async (...args) => {
                 const db = event.target.result;
                 const transaction = db.transaction("myDataStore", "readwrite");
                 const store = transaction.objectStore("myDataStore");
+                if(data.request.httpVersion != 'chrome-extension'){
                 store.add(query);
+                }
                 // log("Data added to IndexedDB", timestamp);
             };
 

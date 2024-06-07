@@ -71,7 +71,7 @@ $("#reps").click((e) => {
 });
 
 //脚本导出
-$("#export").click((e) => {
+$("#export_postman").click((e) => {
     // 使用方法
     export_data().then(value => {
         console.log('Value from IndexedDB:', value);
@@ -82,6 +82,36 @@ $("#export").click((e) => {
         alert("导出数据异常！！")
     });
 });
+
+//脚本导出
+$("#export_json").click((e) => {
+    // 使用方法
+    export_data().then(value => {
+        console.log('Value from IndexedDB:', value);
+        const name = "测试用例"
+        this.downloadJson(name ,value)
+    }).catch(error => {
+        console.error('Error fetching value:', error);
+        alert("导出数据异常！！")
+    });
+});
+//脚本导出
+$("#export_jmx").click((e) => {
+    // 使用方法
+    alert("等待开发")
+});
+//脚本导出
+$("#export_har").click((e) => {
+    // 使用方法
+    alert("等待开发")
+});
+
+//脚本导出
+$("#export_swagger2").click((e) => {
+    // 使用方法
+    alert("等待开发")
+});
+
 
 $("#get_data").click((e) => {
     dataflag = true;
@@ -146,7 +176,9 @@ $("#del_data").click((e) => {
 const db_version = 1;
 
 function clear_data() {
-    Toast('清除缓存', '成功')
+    mark =[];  //清空标记池
+    paramsList=[];  //清空变量池
+    //Toast('清除缓存成功！')
     let tbody = document.getElementById("tbody"); // 获取表格的tbody元素
     tbody.innerHTML = "";
     var numElement = document.getElementById("num");
@@ -199,7 +231,40 @@ function del_data() {
 }
 
 let lc = 1;
+//jsonpath计算
 
+function findJsonPaths(jsonObj, targetValue, basePath = [], paths = []) {
+    try {
+        // 成功转换后的操作
+        for (const key in  jsonObj) {
+
+            if (jsonObj.hasOwnProperty(key)) {
+                const currentPath = [...basePath, key];
+                const currentValue = jsonObj[key];
+                if (currentValue == targetValue) {
+                    // 如果找到匹配的值，则记录当前路径
+                    paths.push(currentPath.join('.'));
+                    console.log(JSON.stringify(paths))
+                    return JSON.stringify(paths[0])
+                } else if (typeof currentValue === 'object' && currentValue !== null) {
+                    // 如果当前值是一个对象，则递归查找
+                    findJsonPaths(currentValue, targetValue, currentPath, paths);
+                    }
+            }
+        }
+        return paths[0];
+    } catch (e) {
+        console.error('解析JSON字符串出错:', e);
+        return ""
+        // 处理错误的操作
+    }
+
+    }
+
+
+
+var mark =[];      //提取参数标记[{name:变量名,value:对应的id}] 统一id可能对应多个变量名，但变量名是唯一的
+var paramsList =[];  //变量池子
 function get_data(e, getType = null,reps={key:'',value:''}) {
 
     lc = 0;
@@ -238,20 +303,30 @@ function get_data(e, getType = null,reps={key:'',value:''}) {
             valueStr = JSON.stringify(cursor.value)
             contentStr=cursor.value.content
             responseStr = JSON.stringify(cursor.value.response)
+            cursor.value.api_name ="未定义接口:"
+            cursor.value.api_desc =""
             if (searchValue == false) {
                 if(reps.key !='' && reps.value != '' ){
-                    cursor.value.api_name ="未定义接口:"
                     if(responseStr !="" && responseStr != undefined ){
-                        if(responseStr.includes(reps.key)){
-                            cursor.value.content=cursor.value.content.replace(reps.key,reps.value).toString()
-                            cursor.value.api_name =cursor.value.api_name+"提取"+JSON.stringify(reps.value)
+                        if(responseStr.includes(reps.key) && !paramsList.includes(reps.value)){
+                            cursor.value.api_name ="参数提取接口:"
+                            if(cursor.value._resourceType =='xhr'){
+                                let jsonpath=findJsonPaths(JSON.parse(contentStr),reps.key)
+                                cursor.value.api_desc =cursor.value.api_desc +"参数提取："+reps.value.toString()+"|"+jsonpath.toString()
+                                mark.push={name:reps.value,value:cursor.id};
+                                paramsList.push(reps.value)
+                              }
                             }
                     }
-
-                    if(contentStr !="" && contentStr != undefined ){
-                        if(contentStr.includes(reps.key)){
-                        cursor.value.content=cursor.value.content.replace(reps.key,reps.value).toString()
-                        cursor.value.api_name =cursor.value.api_name+"提取"+JSON.stringify(reps.value)
+                    if(contentStr !="" && contentStr != undefined && contentStr != [] && contentStr.length>0){
+                        if(contentStr.includes(reps.key)  && !paramsList.includes(reps.value)){
+                            cursor.value.api_name ="参数提取接口:"
+                            if(cursor.value._resourceType =='xhr'){
+                                let jsonpath=findJsonPaths(JSON.parse(contentStr),reps.key)
+                                cursor.value.api_desc =cursor.value.api_desc +"参数提取："+reps.value.toString()+"|"+jsonpath.toString()
+                                mark.push={name:reps.value,value:cursor.id};
+                                paramsList.push(reps.value)
+                              }
                         }
                     }
 
@@ -271,18 +346,15 @@ function get_data(e, getType = null,reps={key:'',value:''}) {
                         cursor.value.request.postData.text =cursor.value.request.postData.text.replace(reps.key,reps.value).toString()
                     }
                     }
-
                     cursor.value.request.url=cursor.value.request.url.replace(reps.key,reps.value).toString()
                     store.put(cursor.value)
             }
 
-            make_data(cursor, getType)
-
-
+                make_data(cursor, getType)
             } else {
                 if (valueStr.includes(searchValue)) {
-                cursor.value.name ="未定义名称接口"
-                make_data(cursor, getType)
+
+                    make_data(cursor, getType)
                 } else {
                     }
                 }
@@ -312,6 +384,7 @@ function make_data(cursor, getType) {
 
     const htmlString = cursor.value.content;
     var api_name = cursor.value.api_name;
+    var api_desc = cursor.value.api_desc;
     if(api_name ==undefined ||api_name =='' ){
         api_name="未定义接口:"
     }
@@ -336,9 +409,12 @@ function make_data(cursor, getType) {
 
     // 为当前数据创建一个新的表格行
     const row = tbody.insertRow();
+
+
     row.insertCell().innerHTML = `<td class="Incheckbox"><input style="width: 15px;height: 15px" type="checkbox" class="select-checkbox" pid="${cursor.value.id}"></td>`;
     row.insertCell().innerHTML = `<td style="width: 10px;">${lc}</td>`;
-        row.insertCell().innerHTML = `<td style="width: 10px;">${api_name}</td>`;
+    row.insertCell().innerHTML = `<td style="width: 10px;">${api_name}</td>`;
+    row.insertCell().innerHTML = `<td style="width: 10px;">${api_desc}</td>`;
     row.insertCell().innerHTML = `<td><div style="width: 50px">
 ${get_time(cursor.value.timestamp)}
 </div></td>`;
@@ -375,6 +451,16 @@ ${get_time(cursor.value.timestamp)}
         const checkbox = this.querySelector('.select-checkbox');
         checkbox.checked = !checkbox.checked;
     });
+
+
+           //var table = $('#requestList table tbody');
+           // $('#requestList')[0].scrollTop = 100000;
+           // 滚动到页面顶部
+           //window.scrollTo(0, 0);
+
+
+
+
     $(function () {
         $('[data-toggle="tooltip"]').tooltip({
             container: "body",
@@ -390,7 +476,10 @@ function get_time(timestamp) {
     var isoString = new Date(timestamp).toISOString();
 
     // 截取我们需要的部分，去掉 'Z' 表示的 UTC 时区
-    var formattedDate = isoString.slice(0, -1).replace(/T/, " ");
+    //var formattedDate = isoString.slice(0, -1).replace(/T/, " ");
+
+    var formattedDate =this.formattedTime()
+
 
     // 输出结果
     return formattedDate;
@@ -811,6 +900,15 @@ function copyApi(e) {
 }
 
 function del_one_data(pid) {
+    try{
+          mark.forEach(index => {
+            if(mark[index].value == Number(pid)){
+               mark.splice(index, 1);
+               paramsList.splice(paramsList.indexOf(mark[index].key), 1);
+            }
+          });
+    }catch{
+    }
     const request = indexedDB.open("myDatabase1", db_version);
     request.onupgradeneeded = function (event) {
         const db = event.target.result;
@@ -848,13 +946,16 @@ function del_one_data(pid) {
 }
 
 
+
 function Toast(title = "", content = "") {
     var myToast = $('#myToast');
     document.getElementById('toastTitle').innerText = title
     document.getElementById('toastBody').innerText = content
-    $('#myToast').toast({delay: 1000}); // 设置3秒后自动消失
+    $('#myToast').toast({delay: 3000}); // 设置3秒后自动消失
     myToast.toast('show');
 }
+
+
 
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -916,29 +1017,47 @@ function convertTransactionsPostman(name,transactions) {
                var rst={}
                array.name=name+"_未定义接口_序号"+num
                num=num+1;
+               console.info(transactions[key])
                rst.method=transactions[key].request.method
                rst.header=transactions[key].request.headers
                Object.keys(rst.header).forEach(k => {
+                    rst.header[k].key= rst.header[k].name
+                    rst.header[k].value= rst.header[k].value
                     rst.header[k].type='text'
+                    delete rst.header[k].name
                });
 
                rst.body={}
 
                if( transactions[key].request.hasOwnProperty("postData") ){
 
-                  if(transactions[key].request.postData.mimeType.includes('multipart/form-data')){
+                  if(transactions[key].request.postData.hasOwnProperty("params") && transactions[key].request.postData.mimeType.includes('multipart/form-data') && transactions[key].request.postData.mimeType.includes('boundary=')){
+                    //上传文件处理
                     rst.body.mode="formdata"
                     rst.body.formdata=transactions[key].request.postData.params
+                    Object.keys(rst.body.formdata).forEach(k => {
+                           rst.body.formdata[k].key=rst.body.formdata[k].name
+                           delete rst.body.formdata[k].name
+                           rst.body.formdata[k].value=rst.body.formdata[k].value
+                           rst.body.formdata[k].type='file'
+                    });
+
+                  }else if(transactions[key].request.postData.hasOwnProperty("params")){
+
+                    //上传文件处理
+                    rst.body.mode="formdata"
+                    rst.body.formdata=transactions[key].request.postData.params
+                    Object.keys(rst.body.formdata).forEach(k => {
+                           rst.body.formdata[k].key=rst.body.formdata[k].name
+                           delete rst.body.formdata[k].name
+                           rst.body.formdata[k].value=rst.body.formdata[k].value
+                           rst.body.formdata[k].type='default'
+                    });
                   }else{
                     rst.body.mode="raw"
                     rst.body.raw=transactions[key].request.postData.text
                   }
                }
-               rst.response={}
-               rst.response.headers=transactions[key].response.headers
-               rst.response.status=transactions[key].response.status
-               rst.response.time=transactions[key].response.time
-               rst.response.content=transactions[key].content
 
                 const str = transactions[key].request.url
  		        var index = str.indexOf(":")
@@ -947,11 +1066,26 @@ function convertTransactionsPostman(name,transactions) {
  		        if(resolve==""){ resolve="http"}
 
  		        // url转变量
- 		        var query =transactions[key].request.queryString
+ 		        var query =[]
+
+ 		        if(transactions[key].request.queryString.length>0){
+                    Object.keys(transactions[key].request.queryString).forEach(k => {
+                       query.push({"key":transactions[key].request.queryString[k].name,"value":transactions[key].request.queryString[k].value})
+                    });
+ 		        }
+
  		        let urlStr=str //.replace(this.getDomain(str),"$$${domain}")
-                rst.url={"raw":urlStr.substring(0, 255),"protocol":resolve,"query":query}
+                rst.url={"raw":urlStr.substring(0, 255),"protocol":resolve,"host":[{"domain":this.getDomain(urlStr),"IP":transactions[key].serverIPAddress}],"query":query}
+                rst.response={}
+                rst.response.headers=transactions[key].response.headers
+                rst.response.status=transactions[key].response.status
+                rst.response.time=transactions[key].response.time
+                rst.response.content=transactions[key].content
+
+
                 array.request=rst
-                array.response=[]
+
+
                 item.push(array)
                 num=num+1;
 
@@ -960,6 +1094,7 @@ function convertTransactionsPostman(name,transactions) {
       data.item=item;
       return data;
     }
+
 
 function   convertTransactionsEXCEL(transactions) {
         var deviceList = [
@@ -1002,8 +1137,10 @@ function   convertTransactionsEXCEL(transactions) {
         return this.sheet2blob(sheet,name);
     }
 
+function   convertTransactionsJMX(transactions){}
+
 function downloadJMX(name, domains, transactions) {
-        let data = this.convertTransactions(transactions);
+        let data = this.convertTransactionsJMX(transactions);
         let jmx = new JMXGenerator(data, name, domains);
         this.download(name + ".jmx", jmx.toXML());
     }
@@ -1017,16 +1154,18 @@ function download(name, str) {
         window.URL.revokeObjectURL(link.href);
     }
 
-function downloadJSON(name, transactions) {
-        this.download(name + ".json", JSON.stringify(transactions));
+
+
+function downloadJson(name, transactions) {
+        this.download(name+'_'+this.formattedDate() + ".json", JSON.stringify(transactions, null, 4));
     }
+
 
 function downloadPostman(name, transactions) {
         let blob=  this.convertTransactionsPostman(name,transactions);
-
-
         this.download(name+'_'+this.formattedDate() + ".json", JSON.stringify(blob, null, 4));
     }
+
 function export_data() {
   var  list=[]
     return new Promise((resolve, reject) => {
@@ -1188,15 +1327,39 @@ function formattedDate() {
 	    return formattedDate;
     }
 
+function formattedTime() {
+        let currentTime = new Date();
+
+        // 获取年份
+        let year = currentTime.getFullYear();
+
+        // 获取月份（注意月份是从0开始计数的，所以需要加1）
+        let month = currentTime.getMonth() + 1;
+
+        // 获取日期
+        let day = currentTime.getDate();
+
+        // 获取小时
+        let hours = currentTime.getHours();
+
+        // 获取分钟
+        let minutes = currentTime.getMinutes();
+
+        // 获取秒数
+        let seconds = currentTime.getSeconds();
+
+        // 格式化时间为 YYYYMMDDHHMMSS
+        let formattedDate = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+        let  timestamp = new Date().getTime();
+
+	    return formattedDate+":"+timestamp.toString().substring(10,13);
+    }
 
 
 function getDict(){
       let obj ={}
       obj["/contract/api/"]="接口自动命名列表"
-
-
-
-
 
       return obj
     }

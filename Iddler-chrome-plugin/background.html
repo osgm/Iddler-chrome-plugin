@@ -4,12 +4,14 @@
     <title>抓包中心</title>
     <meta charset="utf-8"/>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+    <link href="../css/page/options.css" type="text/css" rel="stylesheet"/>
     <link href="js/css/jsoneditor.css" rel="stylesheet" type="text/css">
-    <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet"/>
-    <link href="js/css/bootstrap_icon.css" rel="stylesheet"/>
+    <link href="bootstrap/css/bootstrap.css" rel="stylesheet"/>
+
     <style>
         .tooltip-inner {
-            max-width: 1000px;
+            max-width: 800px;
             white-space: normal;
             text-align: left;
             color: white;
@@ -28,29 +30,66 @@
             transform: translateX(-50%);
             z-index: 1051;
         }
-        .mui-bar-tab .mui-tab-item {
-            margin-left: 10px;
-            margin-right: 10px;
-        }
     </style>
 </head>
-<body>
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <div class="container">
-        <a class="navbar-brand" href="#">开发工具抓包</a>
-        <span style="color: red;display:none;" id="listeningCrawl">正在监听中...    </span>
-        <span style="color: gray;display:none;" id="listeningStop">暂停监听中...    </span>
+<header id="navbar-example" class="navbar navbar-static">
+    <div class="navbar-inner">
+        <div >
+            <a class="brand" href="#">开发工具抓包</a>
+            <ul class="nav pull-left" role="navigation">
+            <span class="tips" style="color: red;" id="listeningCrawl">正在监听中...    </span>
+            <span class="tips"  style="color: gray;" id="listeningStop">暂停监听中...    </span>
 
-        <div class="navbar-nav flex-row justify-content-end ml-auto">
-            <button   type="button" style="color: green;display:none"  class="btn btn-warning" id="stop">
-                开始录制
-            </button>
-            <button  type="button" style="color: blue;display:none" class="btn btn-warning" id="start">
-                停止录制
-            </button>
+            <button class="btn btn-success btn-primary" data-toggle="popover" data-placement="bottom" title="" data-original-title="Popover on top" id="stop">开始录制</button>
+            <button class="btn btn-normal btn-primary" data-toggle="popover" data-placement="bottom" title="" data-original-title="Popover on top" id="start">停止录制</button>
+            </ul>
+            <ul class="nav pull-right" role="navigation">
+                <li class="dropdown">
+                    <a href="#" id="tools" role="button" class="dropdown-toggle" data-toggle="dropdown">Tools <b class="caret"></b></a>
+                    <ul class="dropdown-menu" role="menu" id="toolsMenu" aria-labelledby="tools">
+                        <li role="presentation">
+                            <a role="menuitem" tabindex="-1" href="#" class="clear">Clear</a>
+                        </li>
+                        <li class="divider"></li>
+                        <li role="presentation">
+                            <a role="menuitem" tabindex="-1" href="#">
+                                <label><input type="checkbox" name="diable-cache" id="disabledCacheInput" class="disable-cache" />
+                                    Disable Cache</label>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#" id="drop2" role="button" class="dropdown-toggle" data-toggle="dropdown">Help <b class="caret"></b></a>
+                    <ul class="dropdown-menu" role="menu" aria-labelledby="drop2">
+                        <li role="presentation"><a role="menuitem" tabindex="-1" href="https://github.com/welefen/Fiddler" target="_blank">Fiddler Help</a></li>
+                        <li role="presentation" class="divider"></li>
+                        <li role="presentation"><a role="menuitem" tabindex="-1" href="https://github.com/welefen/Fiddler" target="_blank">@Github</a></li>
+                        <li role="presentation"><a role="menuitem" tabindex="-1" href="https://github.com/welefen/Fiddler/issues" target="_blank">Feedback</a></li>
+                        <li role="presentation" class="divider"></li>
+                        <li role="presentation">
+                            <a role="menuitem" data-target="#aboutModal" data-toggle="modal" tabindex="-1" href="#">About
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a id="filterMenuTitle" href="#" role="button" class="dropdown-toggle" data-toggle="dropdown"><span>导出脚本</span> <b class="caret"></b></a>
+                    <ul class="dropdown-menu"  >
+                        <li><a href="#" id="export_json">JSON</a></li>
+                        <li><a href="#" id="export_postman">Postman</a></li>
+                        <li><a href="#" id="export_jmx">JMX</a></li>
+                        <li><a href="#" id="export_har">HAR</a></li>
+                        <li><a href="#" id="export_swagger2">swagger2.1</a></li>
+                    </ul>
+                </li>
+            </ul>
+
         </div>
     </div>
-</nav>
+</header>
+
+<body>
 
 <!-- 触发按钮 -->
 <div class="toast-container">
@@ -59,58 +98,11 @@
         <div class="toast-header">
             <strong class="mr-auto" id="toastTitle"></strong>
             <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
+
             </button>
         </div>
         <div class="toast-body" id="toastBody">
         </div>
-    </div>
-</div>
-<div class="container">
-    <div class="input-group mb-3">
-        <div class="input-group-prepend">
-            <span class="input-group-text" id="basic-addon3">搜索</span>
-        </div>
-        <input
-                type="text"
-                class="form-control"
-                placeholder="请输入"
-                aria-label="请输入"
-                aria-describedby="basic-addon1"
-                id="search"
-        />
-    </div>
-    <div>
-        <button type="button" class="btn btn-primary" id="get_data">
-            刷新(正序)
-        </button>
-        <button type="button" class="btn btn-success" id="get_data_last">
-            刷新(倒序)
-        </button>
-        <button type="button" class="btn btn-warning" id="del_data">
-            清除数据
-        </button>
-        <button id="deleteButton" style="display: none;" type="button" class="btn btn-warning">删除选中</button>
-        <div style="float: right">
-            <button type="button" class="btn btn-warning" id="export">
-                导出MS脚本
-            </button>
-            <button type="button" class="btn btn-warning" id="export">
-                导出JSON脚本
-            </button>
-            <button type="button" class="btn btn-warning" id="export">
-                导出PM脚本
-            </button>
-            <button type="button" class="btn btn-warning" id="export">
-                导出JMX脚本
-            </button>
-
-
-        </div>
-
-        <!--        <button type="button" class="btn btn-warning" id="clear_data">-->
-        <!--            清除数据-->
-        <!--        </button>-->
     </div>
 </div>
 <div class="container">
@@ -132,10 +124,11 @@
             <button type="button" class="btn btn-outline-dark btn-sm" id="get_WS">WS</button>
             <button type="button" class="btn btn-outline-dark btn-sm" id="get_Wasm">Wasm</button>
             <button type="button" class="btn btn-outline-dark btn-sm" id="get_Other">Other</button>
+            <button type="button"   class="btn btn-success btn-primary"   id="del_data">清除数据</button>
+            <button type="button"   class="btn btn-success btn-primary"   id="deleteButton" style="display: none;">删除选中</button>
         </div>
     </div>
 </div>
-
 <div class="container">
     <div style="min-height: 50px; padding-top: 10px; display: flex">
         <div>
@@ -143,16 +136,15 @@
                 变量替换:
             </span>
         </div>
-        <div style="padding-left: 30px" >
-            <input size="70"
-                    type="text"
-                    class="form-control"
-                    placeholder="请输入目标值，匹配KV的value值，支持正则，建议先查询确认后再替换"
-                    aria-label="请输入目标值，匹配KV的value值，支持正则，建议先查询确认后再替换"
-                    aria-describedby="basic-addon1"
-                    id="get_from"
+        <div style="padding-left: 30px;" >
+            <input style="width: 500px;"
+                   type="text"
+                   class="form-control"
+                   placeholder="请输入目标值，匹配KV的value值，支持正则，建议先查询确认后再替换"
+                   aria-label="请输入目标值，匹配KV的value值，支持正则，建议先查询确认后再替换"
+                   aria-describedby="basic-addon1"
+                   id="get_from"
             />
-
         </div>
         <div style="padding-left: 10px"  >
             <span class="badge badge-success">
@@ -160,30 +152,56 @@
             </span>
         </div>
         <div style="padding-left: 10px">
-            <input size="20"
-                    type="text"
-                    class="form-control"
-                    placeholder="变量标识： ${变量名}"
-                    aria-label="变量标识： ${变量名}"
-                    aria-describedby="basic-addon1"
-                    id="get_to"
+            <input style="width: 200px;"
+                   type="text"
+                   class="form-control"
+                   placeholder="变量标识：${变量名}"
+                   aria-label="变量标识：${变量名}"
+                   aria-describedby="basic-addon1"
+                   id="get_to"
             />
-
         </div>
         <div style="padding-left: 10px ;float: right">
-            <button type="button" class="btn btn-warning" id="reps">
+            <button type="button"  class="btn btn-outline-dark btn-sm"  id="reps">
                 执行替换
             </button>
         </div>
     </div>
 </div>
+<div class="container">
+    <div style="min-height: 50px; padding-top: 10px; display: flex">
+        <div>
+            <span class="badge badge-success">
+                搜索查询:
+            </span>
+        </div>
+        <div style="padding-left: 30px;" >
+            <input
+                    type="text"
+                    class="form-control"
+                    placeholder="请输入查询条件"
+                    aria-label="请输入查询条件"
+                    aria-describedby="basic-addon1"
+                    id="search"
+            />
+        </div>
+        <div style="padding-left: 10px ;float: right">
+            <button type="button"  class="btn btn-outline-dark btn-sm"  id="get_data"  >刷新(正序)</button>
+            <button type="button"  class="btn btn-outline-dark btn-sm" id="get_data_last">刷新(倒序)</button>
+        </div>
+
+    </div>
+
+</div>
+
 <div>
-    <table id ="tableData" class="table table-hover table-bordered">
+    <table class="table table-hover table-bordered">
         <thead class="thead-light">
         <tr>
             <th scope="col" style="min-width: 60px">选择</th>
             <th scope="col" style="min-width: 60px">序号</th>
             <th scope="col" style="min-width: 60px">接口名</th>
+            <th scope="col" style="min-width: 120px">接口描述</th>
             <th scope="col" style="min-width: 90px">时间</th>
             <th scope="col">Version</th>
             <th scope="col">请求方法</th>
