@@ -2,10 +2,40 @@ let dataflag = true;
 let dataType = false;
 let iddlerSwitch = true;
 var ignoreList = [
-            'http://hm.baidu.com/',
-            'http://push.zhanzhang.baidu.com/',
-            'http://api.share.baidu.com/'
+            'chrome-extension',
+            '.js',
+            '.css',
+            '.png',
+            '.jpg',
+            '.bmp',
 ];
+
+  // 获取checkbox元素
+  var checkboxJS = document.getElementById('js');
+  // 判断checkbox是否勾选
+  if (checkboxJS.checked) {
+    ignoreList.push('.js')
+    alert('Checkbox is checked.');
+  } else {
+   ignoreList.push('.js')
+
+  }
+  // 获取checkbox元素
+  var checkboxCSS = document.getElementById('css');
+  // 判断checkbox是否勾选
+  if (checkboxCSS.checked) {
+    alert('Checkbox is checked.');
+  } else {
+    alert('Checkbox is not checked.');
+  }
+   // 获取checkbox元素
+   var checkboxImage = document.getElementById('image');
+   // 判断checkbox是否勾选
+   if (checkboxImage.checked) {
+     alert('Checkbox is checked.');
+   } else {
+     alert('Checkbox is not checked.');
+   }
 
 chrome.storage.local.get('iddlerSwitch', function (result) {
     iddlerSwitch = result.iddlerSwitch;
@@ -31,6 +61,20 @@ chrome.storage.local.get('iddlerSwitch', function (result) {
 function testBackground() {
     alert("你好，我是background！");
 }
+
+//过滤设置
+$("#js").click((e) => {
+  // 获取checkbox元素
+  var checkbox = document.getElementById('js');
+  // 判断checkbox是否勾选
+  if (checkbox.checked) {
+    alert('Checkbox is checked.');
+  } else {
+    alert('Checkbox is not checked.');
+  }
+});
+
+
 
 $("#start").click((e) => {
     chrome.storage.local.set({iddlerSwitch: false}, function () {
@@ -84,6 +128,19 @@ $("#export_postman").click((e) => {
 });
 
 //脚本导出
+$("#export_huawei").click((e) => {
+    // 使用方法
+    export_data().then(value => {
+        console.log('Value from IndexedDB:', value);
+        const name = "测试用例"
+        this.downloadHuawei(name ,value)
+    }).catch(error => {
+        console.error('Error fetching value:', error);
+        alert("导出数据异常！！")
+    });
+});
+
+//脚本导出
 $("#export_json").click((e) => {
     // 使用方法
     export_data().then(value => {
@@ -111,7 +168,6 @@ $("#export_swagger2").click((e) => {
     // 使用方法
     alert("等待开发")
 });
-
 
 $("#get_data").click((e) => {
     dataflag = true;
@@ -231,8 +287,8 @@ function del_data() {
 }
 
 let lc = 1;
-//jsonpath计算
 
+//jsonpath计算
 function findJsonPaths(jsonObj, targetValue, basePath = [], paths = []) {
     try {
         // 成功转换后的操作
@@ -258,10 +314,7 @@ function findJsonPaths(jsonObj, targetValue, basePath = [], paths = []) {
         return ""
         // 处理错误的操作
     }
-
     }
-
-
 
 var mark =[];      //提取参数标记[{name:变量名,value:对应的id}] 统一id可能对应多个变量名，但变量名是唯一的
 var paramsList =[];  //变量池子
@@ -297,6 +350,7 @@ function get_data(e, getType = null,reps={key:'',value:''}) {
         cursorRequest.onsuccess = function (event) {
             const cursor = event.target.result;
             if (cursor) {
+            //过滤数据
             //替换变量更新数据
             //替换所有的请求内容的变量
             //从返回值按顺序查，如果找到了，标记接口并替换
@@ -353,7 +407,49 @@ function get_data(e, getType = null,reps={key:'',value:''}) {
                 make_data(cursor, getType)
             } else {
                 if (valueStr.includes(searchValue)) {
+                if(reps.key !='' && reps.value != '' ){
+                    if(responseStr !="" && responseStr != undefined ){
+                        if(responseStr.includes(reps.key) && !paramsList.includes(reps.value)){
+                            cursor.value.api_name ="参数提取接口:"
+                            if(cursor.value._resourceType =='xhr'){
+                                let jsonpath=findJsonPaths(JSON.parse(contentStr),reps.key)
+                                cursor.value.api_desc =cursor.value.api_desc +"参数提取："+reps.value.toString()+"|"+jsonpath.toString()
+                                mark.push={name:reps.value,value:cursor.id};
+                                paramsList.push(reps.value)
+                              }
+                            }
+                    }
+                    if(contentStr !="" && contentStr != undefined && contentStr != [] && contentStr.length>0){
+                        if(contentStr.includes(reps.key)  && !paramsList.includes(reps.value)){
+                            cursor.value.api_name ="参数提取接口:"
+                            if(cursor.value._resourceType =='xhr'){
+                                let jsonpath=findJsonPaths(JSON.parse(contentStr),reps.key)
+                                cursor.value.api_desc =cursor.value.api_desc +"参数提取："+reps.value.toString()+"|"+jsonpath.toString()
+                                mark.push={name:reps.value,value:cursor.id};
+                                paramsList.push(reps.value)
+                              }
+                        }
+                    }
 
+                    Object.keys(cursor.value.request.headers).forEach(key => {
+                        cursor.value.request.headers[key].value=cursor.value.request.headers[key].value.replace(reps.key,reps.value).toString()
+                    })
+
+                    Object.keys(cursor.value.request.queryString).forEach(key => {
+                        cursor.value.request.queryString[key].value=cursor.value.request.queryString[key].value.replace(reps.key,reps.value).toString()
+                    })
+                    if( cursor.value.request.hasOwnProperty("postData") ){
+                        if(cursor.value.request.postData.mimeType.includes('multipart/form-data')){
+                            Object.keys(cursor.value.request.postData.params).forEach(key => {
+                                cursor.value.request.postData.params[key].value=cursor.value.request.postData.params[key].value.replace(reps.key,reps.value).toString()
+                            })
+                    }else{
+                        cursor.value.request.postData.text =cursor.value.request.postData.text.replace(reps.key,reps.value).toString()
+                    }
+                    }
+                    cursor.value.request.url=cursor.value.request.url.replace(reps.key,reps.value).toString()
+                    store.put(cursor.value)
+            }
                     make_data(cursor, getType)
                 } else {
                     }
@@ -416,8 +512,8 @@ function make_data(cursor, getType) {
     row.insertCell().innerHTML = `<td style="width: 10px;">${api_name}</td>`;
     row.insertCell().innerHTML = `<td style="width: 10px;">${api_desc}</td>`;
     row.insertCell().innerHTML = `<td><div style="width: 50px">
-${get_time(cursor.value.timestamp)}
-</div></td>`;
+    ${get_time(cursor.value.timestamp)}
+    </div></td>`;
     row.insertCell().innerHTML = `<td><div style="width: 50px">${httpVersion}</div></td>`;
     row.insertCell().textContent = method;
     // row.insertCell().innerHTML = `<td style="background-color: green; width: 50px">${extractDomain(url)}</td>`;
@@ -953,14 +1049,11 @@ function Toast(title = "", content = "") {
     document.getElementById('toastBody').innerText = content
     $('#myToast').toast({delay: 3000}); // 设置3秒后自动消失
     myToast.toast('show');
-}
-
-
-
+    }
 
 document.addEventListener('DOMContentLoaded', function () {
-
 });
+
 
 function export_table_data() {
  // 假设表格有一个ID，如<table id="myTable">
@@ -985,6 +1078,7 @@ function export_table_data() {
 
  console.log(tableData);
 }
+
 //替换表格式件
 function reps_table_data(from,to) {
    //替换刷新数据
@@ -997,7 +1091,7 @@ function reps_table_data(from,to) {
     get_data(dataflag, dataType,reps);
 }
 
-function convertTransactionsPostman(name,transactions) {
+function convertTransactionsHuawei(name,transactions) {
       var  data={}
       var  info={}
       info.name=name
@@ -1022,9 +1116,10 @@ function convertTransactionsPostman(name,transactions) {
                rst.header=transactions[key].request.headers
                Object.keys(rst.header).forEach(k => {
                     rst.header[k].key= rst.header[k].name
+                    delete rst.header[k].name
                     rst.header[k].value= rst.header[k].value
                     rst.header[k].type='text'
-                    delete rst.header[k].name
+
                });
 
                rst.body={}
@@ -1076,15 +1171,10 @@ function convertTransactionsPostman(name,transactions) {
 
  		        let urlStr=str //.replace(this.getDomain(str),"$$${domain}")
                 rst.url={"raw":urlStr.substring(0, 255),"protocol":resolve,"host":[{"domain":this.getDomain(urlStr),"IP":transactions[key].serverIPAddress}],"query":query}
-                rst.response={}
-                rst.response.headers=transactions[key].response.headers
-                rst.response.status=transactions[key].response.status
-                rst.response.time=transactions[key].response.time
-                rst.response.content=transactions[key].content
+
 
 
                 array.request=rst
-
 
                 item.push(array)
                 num=num+1;
@@ -1095,6 +1185,106 @@ function convertTransactionsPostman(name,transactions) {
       return data;
     }
 
+function convertTransactionsPostman(name,transactions) {
+      var  data={}
+      var  info={}
+      info.name=name
+      info._postman_id=this.uuid()
+      info.schema='https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+      info._exporter_id=this.formattedDate()
+      data.info=info
+      var item=[]
+      var num =1;
+
+      let keys = Object.keys(transactions);
+      keys.forEach(key => {
+            //求获取过滤类型条件
+            if ((dataType != false  && dataType.includes(transactions[key]._resourceType))||dataType ==false) {
+               var num=1;
+               var array={}
+               var rst={}
+               array.name=name+"_未定义接口_序号"+num
+               num=num+1;
+               console.info(transactions[key])
+               rst.method=transactions[key].request.method
+               rst.header=transactions[key].request.headers
+               Object.keys(rst.header).forEach(k => {
+                    rst.header[k].key= rst.header[k].name
+                    delete rst.header[k].name
+                    rst.header[k].value= rst.header[k].value
+                    rst.header[k].type='text'
+
+               });
+
+               rst.body={}
+
+               if( transactions[key].request.hasOwnProperty("postData") ){
+
+                  if(transactions[key].request.postData.hasOwnProperty("params") && transactions[key].request.postData.mimeType.includes('multipart/form-data') && transactions[key].request.postData.mimeType.includes('boundary=')){
+                    //上传文件处理
+                    rst.body.mode="formdata"
+                    rst.body.formdata=transactions[key].request.postData.params
+                    Object.keys(rst.body.formdata).forEach(k => {
+                           rst.body.formdata[k].key=rst.body.formdata[k].name
+                           delete rst.body.formdata[k].name
+                           rst.body.formdata[k].value=rst.body.formdata[k].value
+                           rst.body.formdata[k].type='file'
+                    });
+
+                  }else if(transactions[key].request.postData.hasOwnProperty("params")){
+
+                    //上传文件处理
+                    rst.body.mode="formdata"
+                    rst.body.formdata=transactions[key].request.postData.params
+                    Object.keys(rst.body.formdata).forEach(k => {
+                           rst.body.formdata[k].key=rst.body.formdata[k].name
+                           delete rst.body.formdata[k].name
+                           rst.body.formdata[k].value=rst.body.formdata[k].value
+                           rst.body.formdata[k].type='default'
+                    });
+                  }else{
+                    rst.body.mode="raw"
+                    rst.body.raw=transactions[key].request.postData.text
+                  }
+               }
+
+                const str = transactions[key].request.url
+ 		        var index = str.indexOf(":")
+ 		        var resolve = str.substring(0, index);
+ 		        console.log(resolve)
+ 		        if(resolve==""){ resolve="http"}
+
+ 		        // url转变量
+ 		        var query =[]
+
+ 		        if(transactions[key].request.queryString.length>0){
+                    Object.keys(transactions[key].request.queryString).forEach(k => {
+                       query.push({"key":transactions[key].request.queryString[k].name,"value":transactions[key].request.queryString[k].value})
+                    });
+ 		        }
+
+ 		        let urlStr=str //.replace(this.getDomain(str),"$$${domain}")
+                rst.url={"raw":urlStr.substring(0, 255),"protocol":resolve,"host":[{"domain":this.getDomain(urlStr),"IP":transactions[key].serverIPAddress}],"query":query}
+
+
+                array.request=rst
+                array.response={}
+                array.response.headers=transactions[key].response.headers
+                array.response.status=transactions[key].response.status
+                array.response.time=transactions[key].response.time
+                array.response.content=transactions[key].content
+                array.event=[]
+                var exec=[]
+                array.event=exec
+                //断言先不处理
+                item.push(array)
+                num=num+1;
+
+            }
+            });
+      data.item=item;
+      return data;
+    }
 
 function   convertTransactionsEXCEL(transactions) {
         var deviceList = [
@@ -1154,15 +1344,17 @@ function download(name, str) {
         window.URL.revokeObjectURL(link.href);
     }
 
-
-
 function downloadJson(name, transactions) {
         this.download(name+'_'+this.formattedDate() + ".json", JSON.stringify(transactions, null, 4));
     }
 
-
 function downloadPostman(name, transactions) {
         let blob=  this.convertTransactionsPostman(name,transactions);
+        this.download(name+'_'+this.formattedDate() + ".json", JSON.stringify(blob, null, 4));
+    }
+
+function downloadHuawei(name, transactions) {
+        let blob=  this.convertTransactionsHuawei(name,transactions);
         this.download(name+'_'+this.formattedDate() + ".json", JSON.stringify(blob, null, 4));
     }
 
@@ -1211,9 +1403,7 @@ function export_data() {
     return list;
 }
 
-
-
-    // 将一个sheet转成最终的excel文件的blob对象
+// 将一个sheet转成最终的excel文件的blob对象
 function sheet2blob(sheet, sheetName) {
 
     sheetName = sheetName || 'sheet1';
@@ -1240,6 +1430,7 @@ function sheet2blob(sheet, sheetName) {
     }
     return blob;
     }
+
 function uuid() {
 	   var s = [];
 	    var hexDigits = "0123456789abcdef";
@@ -1253,6 +1444,7 @@ function uuid() {
 	    var uuid = s.join("");
 	    return uuid;
     }
+
 function getDomain(url) {
         var domain=""
         try {
@@ -1263,6 +1455,7 @@ function getDomain(url) {
           }
 	    return domain
     }
+
 function getUrlParams(url) {
         // 通过 ? 分割获取后面的参数字符串
         let urlStr = url.split('?')[1]
@@ -1282,6 +1475,7 @@ function getUrlParams(url) {
         console.log(params)
 	    return params
     }
+
 function getUrlParamsNew(url) {
         const searchParams = new URLSearchParams(new URL(url).search);
         const params = {};
@@ -1292,6 +1486,7 @@ function getUrlParamsNew(url) {
 
         return params;
     }
+
 function getUrlPath(url) {
         var path=""
         try {
@@ -1301,6 +1496,7 @@ function getUrlPath(url) {
           }
 	    return path
     }
+
 function formattedDate() {
         let currentTime = new Date();
 
@@ -1356,13 +1552,13 @@ function formattedTime() {
 	    return formattedDate+":"+timestamp.toString().substring(10,13);
     }
 
-
 function getDict(){
       let obj ={}
       obj["/contract/api/"]="接口自动命名列表"
 
       return obj
     }
+
 // 监听整个document的click事件
 document.addEventListener('click', function (event) {
     // 检查点击的是否是复选框
