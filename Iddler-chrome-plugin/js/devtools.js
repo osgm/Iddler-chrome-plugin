@@ -17,11 +17,19 @@ if (!indexedDB) {
 const db_version = 1;
 let iddlerSwitch = null;
 
+let ignoreSetArray=null;
+
 
 chrome.devtools.network.onRequestFinished.addListener(async (...args) => {
     chrome.storage.local.get('iddlerSwitch', function (result) {
         iddlerSwitch = result.iddlerSwitch;
     });
+
+
+    chrome.storage.local.get('ignoreSetArray', function (result) {
+        ignoreSetArray = result.ignoreSetArray;
+    });
+
     if (iddlerSwitch) {
         try {
             const [
@@ -58,8 +66,15 @@ chrome.devtools.network.onRequestFinished.addListener(async (...args) => {
                 const db = event.target.result;
                 const transaction = db.transaction("myDataStore", "readwrite");
                 const store = transaction.objectStore("myDataStore");
-                if(data.request.httpVersion != 'chrome-extension'){
-                store.add(query);
+                if(data.request.httpVersion != 'chrome-extension' && data.request.httpVersion.includes('HTTP')){
+
+
+
+
+                    if (!ignoreSetArray.includes(data._resourceType)){
+                        store.add(query);
+                    }
+
                 }
                 // log("Data added to IndexedDB", timestamp);
             };
@@ -73,4 +88,5 @@ chrome.devtools.network.onRequestFinished.addListener(async (...args) => {
     } else {
     }
 });
+
 

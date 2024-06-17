@@ -4,10 +4,13 @@ $(function () {
     chrome.storage.sync.get(defaultConfig, function (items) {
         document.body.style.backgroundColor = items.color;
     });
-
     // 初始化国际化
     $("#test_i18n").html(chrome.i18n.getMessage("helloWorld"));
+
+
 });
+
+
 
 
 chrome.storage.local.get('iddlerSwitch', function (result) {
@@ -30,6 +33,7 @@ chrome.storage.local.get('iddlerSwitch', function (result) {
     } catch {
         }
 });
+
 
 
 

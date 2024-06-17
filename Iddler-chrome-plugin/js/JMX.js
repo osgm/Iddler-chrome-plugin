@@ -566,12 +566,12 @@ class JMeterTestPlan extends Element {
         }
     }
 }
-
 class JMXGenerator {
-    constructor(data, name, ds) {
+    constructor(data, name) {
         this.data = data;
         this.name = name;
         let domains = {};
+        let ds=['test.com']
         ds.forEach((name, index) => {
             domains[name] = "BASE_URL_" + index;
         });
@@ -704,6 +704,7 @@ class JMXGenerator {
     }
 }
 
+
 class DownloadRecording {
     getDomains(object) {
         let domains = [];
@@ -731,6 +732,7 @@ class DownloadRecording {
 
     convertTransactions(transactions) {
         let result = [];
+        let domains = [];
         let keys = Object.keys(transactions);
         keys.forEach(key => {
             if (!transactions[key].hasOwnProperty("url")) {
@@ -739,6 +741,8 @@ class DownloadRecording {
                 let traffic = Object.keys(transactions[key]);
                 traffic.forEach(index => {
                     request.push(transactions[key][index]);
+
+
                 })
                 result.push({name: name, request: request});
             } else {
@@ -746,16 +750,6 @@ class DownloadRecording {
             }
         });
         return result;
-    }
-
-    downloadJSON(name, transactions) {
-        this.download(name + ".json", JSON.stringify(transactions));
-    }
-
-    downloadPostman(name, transactions) {
-        let blob=  this.convertTransactionsPostman(transactions);
-        this.download(name + ".json", JSON.stringify(blob, null, 4));
-            // this.download(name + ".json",this.formatJson(JSON.stringify(blob)));
     }
 
     downloadEXCEL(name, transactions) {
@@ -961,139 +955,6 @@ class DownloadRecording {
         let formattedDate = `${year}${month.toString().padStart(2, '0')}${day.toString().padStart(2, '0')}${hours.toString().padStart(2, '0')}${minutes.toString().padStart(2, '0')}${seconds.toString().padStart(2, '0')}`;
 	    return formattedDate;
     }
-    convertTransactionsPostman(transactions) {
-
-        let keys = Object.keys(transactions);
-        var  data={}
-        var  info={}
-        info._postman_id=this.uuid()
-        info.schema='https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
-        info._exporter_id=this.formattedDate()
-
-        var item=[]
-        keys.forEach(key => {
-            if (!transactions[key].hasOwnProperty("url")) {
-               let name = key.split(" [")[0];
-               info.name=name
-               let traffic = Object.keys(transactions[key]);
-               var num=1;
-               traffic.forEach(index => {
-               var array={}
-               var rst={}
-               array.name=name+"_未定义接口_序号"+num
-               rst.method=transactions[key][index]['method']
-                if(transactions[key][index]['headers']==undefined){
-                    rst.header=[]
-                }else{
-                    var header=[]
-                    let hds=transactions[key][index]['headers']
-                    hds.forEach(key => {
-                      var head={}
-                      head.key=key['name']
-                      head.value=key['value'].replace(new RegExp("\"", "gm"), "")
-                      head.type="text"
-
-                      if(!key['name'].includes("sec-ch-ua") && !key['name'].includes("gzwSubmit")){
-                            if(!["t","__","&","response-expires","Expires","Origin","Cache-Control","Pragma","Sec-Purpose","Sec-Fetch-Site","Sec-Fetch-Mode","Sec-Fetch-User","Sec-Fetch-Dest","Referer","Referer","Accept-Encoding","Accept-Language","Purpose","Accept"].includes(key['name'])){
-                                    header.push(head)
-                            }
-                        }
-                      });
-                           if(header.Cookie==undefined ||header.Cookie==""||header.Cookie==[]){
-                                //录制时不记录cookie时重新 登录态参数
-                              //  header.push({"key":"Cookie","value":"$${Cookie}","type":"text"})
-                              }
-
-                rst.header=header
-                }
-
-               var str =transactions[key][index]['url']
-               var query=[]
-               if(transactions[key][index]['files']==undefined ||transactions[key][index]['body'].length==0){
-                   }else{
-                     rst.files=transactions[key][index]['files']
-                   }
-
-               if(transactions[key][index]['body']==undefined ||transactions[key][index]['body'].length==0||transactions[key][index]['body'][0]==undefined){
-                        rst.body={"mode":"raw","raw":""}
-                        }else{
-                          console.log("####################")
-                          console.log(JSON.stringify(transactions[key][index]['body']))
-                          rst.body={"mode":"raw","raw":transactions[key][index]['body'][0]}
-                          if (transactions[key][index]['body'][0].substring(0,1)=="{" ){
-                              rst.body={"mode":"raw","raw":transactions[key][index]['body'][0]}
-                                    } else if (transactions[key][index]['body'][0].substring(0,1)=="[" ){
-                                        rst.body={"mode":"raw","raw":transactions[key][index]['body'][0]}
-                                    } else if (transactions[key][index]['body'][0].substring(0,1)=="[{" ){
-                                                try {
-                                                let forms=[]
-
-                                                console.log("########formdata############")
-                                                console.log(transactions[key][index]['body'])
-                                                let form= Object.keys(transactions[key][index]['body']);
-                                                form.forEach(key1 => {
-                                                  console.log("########formda111ta############")
-                                                  console.log(transactions[key][index]['body'][key1])
-                                                  console.log(transactions[key][index]['body'][key1][0])
-                                                  forms.push({"key":transactions[key][index]['body'][key1][0][0],"value":transactions[key][index]['body'][key1][0][1],"type":"default"})
-                                                                             });
-                                                  rst.body={"mode":"formdata","formdata":forms}
-                                                } catch (e) {
-                                                    alert("解析 formdata 异常")
-                                                }
-
-
-                                      }
-                              else if (transactions[key][index]['body'][0].includes("=") ){
-                                str =transactions[key][index]['url']+"?"+  transactions[key][index]['body'][0]
-
-                              }
-
-
-                        }
-           if(str.includes("?")){
-             query= this.getUrlParams(str)
-           }
-
-           if(str.includes("/")){
-                //提取path路径
-                let path =this.getUrlPath(str)
-                let json= this.getDict()
-                Object.keys(json).forEach(jsonKey => {
-                  console.log(jsonKey + ": " + json[jsonKey]);
-                         if (path.includes(jsonKey)) {
-                            console.log("json有key属性");
-                            console.log(json[jsonKey]);
-                            array.name=name+ "_"+json[jsonKey]+"_序号"+num
-                        }
-                });
-
-           }
-
-
- 		   var index = str.indexOf(":")
- 		   var resolve = str.substring(0, index);
- 		   console.log(resolve)
- 		   if(resolve==""){
- 		    resolve="http"}
-
- 		   // url转变量
-
- 		   let urlStr=str //.replace(this.getDomain(str),"$$${domain}")
-           rst.url={"raw":urlStr.substring(0, 255),"protocol":resolve,"query":query}
-           array.request=rst
-           array.response=[]
-           item.push(array)
-           num=num+1;
-        })
-    } else {
-            alert("数据异常，未抓取响应的请求数据")
-    }
-        });
-       data.item=item;
-       data.info=info
-       return data;
-    }
 
     convertTransactionsEXCEL(transactions) {
         var deviceList = [
@@ -1115,20 +976,20 @@ class DownloadRecording {
                 hds.forEach(key => {
                      headers=headers+key['name']+"="+key['value']+"&"
                          });
-        let array=[]
-        array.push(name)
-        array.push(name+num)
-        array.push(transactions[key][index]['method'])
-        array.push(headers)
-        array.push(transactions[key][index]['url'])
-        array.push("alpha")
-        array.push("")
-        array.push("json")
-        array.push(JSON.stringify(transactions[key][index]['body']))
-        array.push("精确匹配")
-        array.push("success")
-        deviceList.push(array)
-        num=num+1;
+                let array=[]
+                array.push(name)
+                array.push(name+num)
+                array.push(transactions[key][index]['method'])
+                array.push(headers)
+                array.push(transactions[key][index]['url'])
+                array.push("alpha")
+                array.push("")
+                array.push("json")
+                array.push(JSON.stringify(transactions[key][index]['body']))
+                array.push("精确匹配")
+                array.push("success")
+                deviceList.push(array)
+                num=num+1;
 
 
                     })
@@ -1141,13 +1002,13 @@ class DownloadRecording {
         return this.sheet2blob(sheet,name);
     }
 
-    downloadJMX(name, domains, transactions) {
+    downloadJMX(name,transactions) {
         let data = this.convertTransactions(transactions);
-        let jmx = new JMXGenerator(data, name, domains);
-        this.download(name + ".jmx", jmx.toXML());
+        let jmx = new JMXGenerator(data, name);
+        this.download1(name + ".jmx", jmx.toXML());
     }
 
-    download(name, str) {
+    download1(name, str) {
         let blob = new Blob([str], {type: "application/octet-stream"});
         let link = document.createElement('a');
         link.href = window.URL.createObjectURL(blob);
@@ -1156,110 +1017,5 @@ class DownloadRecording {
         window.URL.revokeObjectURL(link.href);
     }
 
-
-
-    getDict(){
-      let obj ={}
-      obj["/contract/api/contract/getTabCount"]="获取tab数量"
-      obj["/contract/api/resultAssignment/getUnsignedResultPage"]="未注册结果页"
-      obj["/infrastructure/api/taxCode/list/page"]="税率方式列表"
-      obj["/contract/api/contract"]="暂存"
-      obj["/contract/api/contract/getMasterContractPages"]="供应商列表"
-      obj["/user/api/org/custom/org/tree"]="买方列表"
-      obj["/classifymanage/api/supplier/archives/api/supplier/archives/list"]="供应商列表"
-      obj["/classifymanage/api/supplier/archives/api/supplier/archive/detail"]="供应商详情"
-      obj["/infrastructure/api/baseDictCode/list/page"]="支付方式列表"
-      obj["/contract/api/contract/getContractFullInfo"]="获取合同信息"
-      obj["/zuul/infrastructure/api/attachment/batch/upload"]="上传合同文件"
-      obj["/infrastructure/api/attachment/list"]="合同文件列表"
-      obj["/contract/api/contractPay/list"]="支付计划说明"
-      obj["/contract/api/contract/update/step"]="提交合同信息"
-      obj["/contract/api/contractInfo"]="合同信息"
-      obj["/contract/api/contractInfo/init/contract/file/"]="合同文件信息"
-      obj["/infrastructure/api/taxCode/list/page"]="税率方式详情"
-      obj["/infrastructure/api/attachment/list/"]="合同文件列表"
-
-      obj["/contract/api/contractTieredPrice/getTieredPricesByContractId"]="创建合同"
-
-
-
-      obj["/showMallProductList"]="商品列表"
-      obj["/protalProduct?goodsId"]="商品详情页"
-      obj["/serv/order-service/api/goods/queryGoodsDetailWithCatalogInfo"]="商品详情"
-      obj["/serv/order-service/api/areas/getByCascade"]="配送区域"
-      obj["/serv/order-service/api/goods/getTaxRate1"]="税率"
-      obj["/serv/contract-service/api/catalogs/getNodeList"]="采购目录"
-      obj["/serv/order-service/api/order/goods/history_ps"]="商品报价"
-      obj["/serv/order-service/api/goods/querySameGoodsListWithSpec"]="订单信息"
-      obj["/serv/order-service/api/cart/addCart"]="加入购物车"
-      obj["/serv/order-service/api/goodsViewHistory/saveOrUpdate"]="订单锁定"
-      obj["/serv/order-service/api/order/goods/trade_count"]="采购人数"
-      obj["/serv/order-service/api/order/goods/review_count"]="浏览次数"
-      obj["/serv/order-service/api/goods/getGoodsBuyCheck"]="价格趋势"
-      obj["/serv/order-service/api/order/goods/trade_count"]="采购人数"
-
-
-      obj["/serv/order-service/api/order/goods/trade_count"]="采购人数"
-      obj["/serv/order-service/api/order/goods/trade_count"]="采购人数"
-      obj["/serv/order-service/api/order/goods/review_page"]="用户评价"
-      obj["/serv/order-service/api/order/goods/trade_page"]="成交记录"
-      obj["/serv/order-service/api/goods/querySameGoodsListWithGoodsName"]="相似商品报价"
-      obj["/serv/order-service/api/preorder/goOrderWithAmount"]="提交订单"
-
-
-      obj["/serv/system-service/api/dept/qryChildList"]="订单单位"
-      obj["/serv/order-service/api/forwardAddr/list"]="转运地址"
-      obj["/serv/busiconfig-service/api/conf/qryConfByItemCodes"]="合同规则配置"
-      obj["/serv/order-service/api/areas/getByCascade"]="收货省市"
-      obj["/serv/system-service/api/sapRef/client"]="SAP客户端"
-      obj["/serv/system-service/api/basic/qryUserByUserId"]="用户分组"
-
-
-      obj["/serv/order-service/api/preorder"]="商品清单订单"
-      obj["/serv/order-service/api/receiverAddr/list"]="收货地址"
-      obj["/serv/system-service/api/dept/queryThirdAndForthDeptListBySecondDeptId"]="工厂信息"
-      obj["/serv/system-service/api/dept/getSysDeptByDeptCodeAndTenantId"]="组织信息"
-      obj["/serv/order-service/api/invoices/getTypes"]="发票类型"
-      obj["/serv/order-service/api/preorder/calcFreight"]="提交预购信息"
-
-
-
-
-      obj["/serv/order-service/api/invoicesConf/queryByMap"]="发票配置"
-      obj["/serv/order-service/api/preorder/updatePreorderChangeArea"]="切换地址"
-      obj["/serv/order-service/api/preorder"]="预定订单"
-      obj["/serv/order-service/api/preorder/calcFreight"]="预定信息"
-      obj["/serv/system-service/api/sapRef/getLocaltionPage"]="库存地点"
-      obj["/serv/system-service/api/sapRef/getBuyerGroupPage"]="采购组"
-
-
-
-
-      obj["/contract/api/executePlan/toBeCreatedPage"]="待创建计划列表"
-      obj["/contract/api/executePlan/getPlanInfoBySourceId"]="获取计划信息"
-      obj["/serv/order-service/api/preorder"]="预定订单"
-      obj["/serv/order-service/api/preorder/calcFreight"]="预定信息"
-      obj["/serv/system-service/api/sapRef/getLocaltionPage"]="库存地点"
-      obj["/serv/system-service/api/sapRef/getBuyerGroupPage"]="采购组"
-      obj["/serv/order-service/api/invoicesConf/queryByMap"]="发票配置"
-      obj["/serv/order-service/api/preorder/updatePreorderChangeArea"]="切换地址"
-      obj["/serv/order-service/api/preorder"]="预定订单"
-      obj["/serv/order-service/api/preorder/calcFreight"]="预定信息"
-      obj["/serv/system-service/api/sapRef/getLocaltionPage"]="库存地点"
-      obj["/serv/system-service/api/sapRef/getBuyerGroupPage"]="采购组"
-      obj["/serv/order-service/api/invoicesConf/queryByMap"]="发票配置"
-      obj["/serv/order-service/api/preorder/updatePreorderChangeArea"]="切换地址"
-      obj["/serv/order-service/api/preorder"]="预定订单"
-      obj["/serv/order-service/api/preorder/calcFreight"]="预定信息"
-      obj["/serv/system-service/api/sapRef/getLocaltionPage"]="库存地点"
-      obj["/serv/system-service/api/sapRef/getBuyerGroupPage"]="采购组"
-
-
-
-
-
-
-      return obj
-    }
 
 }

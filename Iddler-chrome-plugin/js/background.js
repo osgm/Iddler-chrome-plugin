@@ -1,12 +1,128 @@
-let dataflag = true;
-let dataType = false;
-let iddlerSwitch = true;
-var ignoreList = [
-            'http://hm.baidu.com/',
-            'http://push.zhanzhang.baidu.com/',
-            'http://api.share.baidu.com/'
-];
 
+var dataflag = true;
+var dataType = false;
+//录制开关
+var iddlerSwitch = true;
+//导出时是否带返回值
+var withRes =true
+function testBackground() {
+    alert("你好，我是background！");
+}
+
+
+// 初始加载时进行一次检查
+//handleResize(); //只能判断当前页面 不能从popup判断 被监听页面 待优化实现方式
+// 添加resize事件监听器
+//window.addEventListener('resize', handleResize);
+function handleResize() {
+  const screenWidth = screen.width;
+  const windowWidth  = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+  if (screenWidth !== windowWidth) {
+   alert('打开');
+   var notification = document.getElementById('notification');
+   notification.classList.add('show');
+  } else if (screenWidth === windowWidth) {
+   alert('未打开');
+  }
+}
+
+
+let  ignoreSet = new Set([
+        'document',
+        'preflight',
+        'stylesheet',
+        'font',
+        'script',
+        'image'
+            ]);
+
+
+//过滤器操作
+let ignoreSetArray = Array.from(ignoreSet);
+chrome.storage.local.set({ignoreSetArray: ignoreSetArray}, function () {
+        chrome.storage.local.get('ignoreSetArray', function (result) {
+            console.info("ignoreSet")
+             console.info(result.ignoreSetArray)
+            ignoreSet= new Set(result.ignoreSetArray);
+
+        });
+});
+
+function filter(ignoreSet) {
+// 因为存储 API 只接受可序列化的对象，所以我们需要将 Set 转换为数组
+    let ignoreSetArray = Array.from(ignoreSet);
+    chrome.storage.local.set({ignoreSetArray: ignoreSetArray}, function () {
+        chrome.storage.local.get('ignoreSetArray', function (result) {
+            console.info("ignoreSet")
+             console.info(result.ignoreSetArray)
+            ignoreSet= new Set(result.ignoreSetArray);
+
+        });
+    });
+}
+
+$("#doc").click((e) => {
+    // js 过滤
+    var checkboxJS = document.getElementById('doc');
+    if (checkboxJS.checked) {
+        ignoreSet.add('document')
+        ignoreSet.add('preflight')
+    } else {
+        ignoreSet.delete('document');
+        ignoreSet.delete('preflight');
+    }
+    this.filter(ignoreSet)
+});
+
+$("#css").click((e) => {
+    // js 过滤
+    var checkboxJS = document.getElementById('css');
+    if (checkboxJS.checked) {
+        ignoreSet.add('stylesheet')
+        ignoreSet.add('font')
+    } else {
+        ignoreSet.delete('stylesheet');
+        ignoreSet.delete('font');
+    }
+    this.filter(ignoreSet)
+});
+
+$("#js").click((e) => {
+    // css 过滤
+    var checkboxJS = document.getElementById('js');
+    if (checkboxJS.checked) {
+        ignoreSet.add('script')
+    } else {
+        ignoreSet.delete('script');
+    }
+    this.filter(ignoreSet)
+});
+
+$("#image").click((e) => {
+    // image 过滤
+    var checkboxJS = document.getElementById('image');
+    if (checkboxJS.checked) {
+        ignoreSet.add('image')
+    } else {
+        ignoreSet.delete('image');
+    }
+    this.filter(ignoreSet)
+});
+
+$("#withRes").click((e) => {
+    // image 过滤
+    var checkboxJS = document.getElementById('withRes');
+    if (checkboxJS.checked) {
+        withRes =true
+    } else {
+        withRes =false
+    }
+    this.filter(ignoreSet)
+});
+
+
+
+//录制开关
 chrome.storage.local.get('iddlerSwitch', function (result) {
     iddlerSwitch = result.iddlerSwitch;
     console.info(iddlerSwitch)
@@ -14,23 +130,21 @@ chrome.storage.local.get('iddlerSwitch', function (result) {
     if (iddlerSwitch) {
         // 如果iddlerSwitch为true，则显示span元素
         document.querySelector('#listeningStop').style.display = 'none'; // 或者 'block', 'flex' 等，取决于你的布局需求
-        document.querySelector('#listeningCrawl').style.display = 'inline'; // 或者 'block', 'flex' 等，取决于你的布局需求
-        document.querySelector('#start').style.display = 'inline'; // 或者 'block', 'flex' 等，取决于你的布局需求
-        document.querySelector('#stop').style.display = 'none'; // 或者 'block', 'flex' 等，取决于你的布局需求
+        document.querySelector('#listeningCrawl').style.display = 'inline';
+        document.querySelector('#start').style.display = 'inline';
+        document.querySelector('#stop').style.display = 'none';
 
     } else {
         document.querySelector('#listeningStop').style.display = 'inline';
         document.querySelector('#listeningCrawl').style.display = 'none';
-        document.querySelector('#start').style.display = 'none'; // 或者 'block', 'flex' 等，取决于你的布局需求
-        document.querySelector('#stop').style.display = 'inline'; // 或者 'block', 'flex' 等，取决于你的布局需求
+        document.querySelector('#start').style.display = 'none';
+        document.querySelector('#stop').style.display = 'inline';
     }
     } catch {
         }
 });
 
-function testBackground() {
-    alert("你好，我是background！");
-}
+
 
 $("#start").click((e) => {
     chrome.storage.local.set({iddlerSwitch: false}, function () {
@@ -57,7 +171,6 @@ $("#stop").click((e) => {
     document.querySelector('#stop').style.display = 'none'; // 或者 'block', 'flex' 等，取决于你的布局需求
     document.querySelector('#start').style.display = 'inline'; // 或者 'block', 'flex' 等，取决于你的布局需求
     chrome.storage.local.get('iddlerSwitch', function (result) {console.info(result)})
-
 
 });
 
@@ -98,7 +211,15 @@ $("#export_json").click((e) => {
 //脚本导出
 $("#export_jmx").click((e) => {
     // 使用方法
-    alert("等待开发")
+    export_data().then(value => {
+        console.log('Value from IndexedDB:', value);
+        const name = "测试用例"
+
+        this.downloadJMX(name ,value)
+    }).catch(error => {
+        console.error('Error fetching value:', error);
+        alert("导出数据异常！！")
+    });
 });
 //脚本导出
 $("#export_har").click((e) => {
@@ -349,11 +470,11 @@ function get_data(e, getType = null,reps={key:'',value:''}) {
                     cursor.value.request.url=cursor.value.request.url.replace(reps.key,reps.value).toString()
                     store.put(cursor.value)
             }
-
+                console.info(cursor.value)
                 make_data(cursor, getType)
             } else {
                 if (valueStr.includes(searchValue)) {
-
+                        console.info(cursor.value)
                     make_data(cursor, getType)
                 } else {
                     }
@@ -996,6 +1117,21 @@ function reps_table_data(from,to) {
 
     get_data(dataflag, dataType,reps);
 }
+function convertTransactionsJson(name,transactions) {
+      var item=[]
+      let keys = Object.keys(transactions);
+      keys.forEach(key => {
+            //求获取过滤类型条件
+            if ((dataType != false  && dataType.includes(transactions[key]._resourceType))||dataType ==false) {
+                if (withRes === true){
+                   transactions[key].content=''
+                }
+                item.push(transactions[key])
+            }
+
+            });
+      return item;
+    }
 
 function convertTransactionsPostman(name,transactions) {
       var  data={}
@@ -1076,12 +1212,13 @@ function convertTransactionsPostman(name,transactions) {
 
  		        let urlStr=str //.replace(this.getDomain(str),"$$${domain}")
                 rst.url={"raw":urlStr.substring(0, 255),"protocol":resolve,"host":[{"domain":this.getDomain(urlStr),"IP":transactions[key].serverIPAddress}],"query":query}
-                rst.response={}
-                rst.response.headers=transactions[key].response.headers
-                rst.response.status=transactions[key].response.status
-                rst.response.time=transactions[key].response.time
-                rst.response.content=transactions[key].content
-
+                if (withRes === true){
+                                rst.response={}
+                                rst.response.headers=transactions[key].response.headers
+                                rst.response.status=transactions[key].response.status
+                                rst.response.time=transactions[key].response.time
+                                rst.response.content=transactions[key].content
+                }
 
                 array.request=rst
 
@@ -1139,10 +1276,15 @@ function   convertTransactionsEXCEL(transactions) {
 
 function   convertTransactionsJMX(transactions){}
 
-function downloadJMX(name, domains, transactions) {
-        let data = this.convertTransactionsJMX(transactions);
-        let jmx = new JMXGenerator(data, name, domains);
-        this.download(name + ".jmx", jmx.toXML());
+
+
+function downloadJMX(name,transactions) {
+        let downloadRecording = new DownloadRecording();
+        downloadRecording.downloadJMX(name, transactions);
+
+
+
+
     }
 
 function download(name, str) {
@@ -1157,7 +1299,8 @@ function download(name, str) {
 
 
 function downloadJson(name, transactions) {
-        this.download(name+'_'+this.formattedDate() + ".json", JSON.stringify(transactions, null, 4));
+        let blob=  this.convertTransactionsJson(name,transactions);
+        this.download(name+'_'+this.formattedDate() + ".json", JSON.stringify(blob, null, 4));
     }
 
 
